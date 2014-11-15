@@ -36,11 +36,15 @@ class CronJob:
     Represents a CronJob. This handles parsing of the job to get timing
     information, as well as determining when the job will be run next.
     >>> CronJob("* * * * * true").times
-    '* * * * * true'
+    ['*', '*', '*', '*', '*']
+    >>> CronJob("* * * * * true").job
+    'true'
     """
 
     def __init__(self, line):
-        self.times = line
+        line = line.split()
+        self.times = line[:5]
+        self.job = line[5]
 
 if __name__ == "__main__":
     import doctest
