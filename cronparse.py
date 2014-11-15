@@ -2,7 +2,7 @@
 This file parses crontabs in order to manipulate them
 >>> from io import StringIO
 >>> CronTab(StringIO("#comment\\n  \t\\nVAR=3\\n* * * * * true"))
-CronTab
+<__main__.CronTab object at 0x...>
 """
 
 import re
@@ -16,7 +16,7 @@ class CronTab:
     blank lines.
     >>> from io import StringIO
     >>> CronTab(StringIO("* * * * * true")).jobs
-    [CronJob]
+    [<__main__.CronJob object at 0x...>]
     """
 
     def __init__(self, file):
@@ -28,9 +28,6 @@ class CronTab:
                 continue
             else:
                 self.jobs.append(CronJob(line))
-
-    def __repr__(self):
-        return "CronTab"
 
 
 class CronJob:
@@ -45,9 +42,6 @@ class CronJob:
     def __init__(self, line):
         self.times = line
 
-    def __repr__(self):
-        return "CronJob"
-
 if __name__ == "__main__":
     import doctest
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
