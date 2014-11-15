@@ -43,9 +43,12 @@ class CronJob:
     'echo test'
     """
 
+    STAR_RANGES = ("0-59", "0-23", "1-31", "1-12", "1-7")
+
     def __init__(self, line):
         line = line.split(maxsplit=5)
-        self.times = tuple(CronSet(f) for f in line[:5])
+        self.times = tuple(CronSet(f, r) for f, r in
+                           zip(line, CronJob.STAR_RANGES))
         self.job = line[5]
 
 
@@ -54,11 +57,11 @@ class CronSet:
     """
     Represents a set of ranges in one particular field of one particular
     job.
-    >>> CronSet("1-5/4,34-57,59,*/30").ranges
+    >>> CronSet("1-5/4,34-57,59,*/30", "0-59").ranges
     ('1-5/4', '34-57', '59', '*/30')
     """
 
-    def __init__(self, field):
+    def __init__(self, field, star_range):
         self.ranges = tuple(str(r) for r in field.split(","))
 
     def __repr__(self):
