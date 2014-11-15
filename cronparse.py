@@ -36,7 +36,7 @@ class CronJob:
     Represents a CronJob. This handles parsing of the job to get timing
     information, as well as determining when the job will be run next.
     >>> CronJob("* * * * * true").times
-    ['*', '*', '*', '*', '*']
+    (*, *, *, *, *)
     >>> CronJob("* * * * * true").job
     'true'
     >>> CronJob("* * * * * echo test").job
@@ -45,8 +45,24 @@ class CronJob:
 
     def __init__(self, line):
         line = line.split(maxsplit=5)
-        self.times = line[:5]
+        self.times = tuple(CronSet(f) for f in line[:5])
         self.job = line[5]
+
+
+class CronSet:
+
+    """
+    Represents a set of ranges in one particular field of one particular
+    job.
+    >>> CronSet("1-5/4,34-57,59,*/30").ranges
+    ('1-5/4', '34-57', '59', '*/30')
+    """
+
+    def __init__(self, field):
+        self.ranges = tuple(str(r) for r in field.split(","))
+
+    def __repr__(self):
+        return ','.join(self.ranges)
 
 if __name__ == "__main__":
     import doctest
