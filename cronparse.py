@@ -36,7 +36,7 @@ class Job:
     Represents a cron job. This handles parsing of the job to get timing
     information, as well as determining when the job will be run next.
     >>> Job("* * * * * true").times
-    (*, *, *, *, *)
+    (0-59/1, 0-23/1, 1-31/1, 1-12/1, 1-7/1)
     >>> Job("* * * * * true").job
     'true'
     >>> Job("* * * * * echo test").job
@@ -58,14 +58,44 @@ class Set:
     Represents a set of ranges in one particular field of one particular
     job.
     >>> Set("1-5/4,34-57,59,*/30", "0-59").ranges
-    ('1-5/4', '34-57', '59', '*/30')
+    (1-5/4, 34-57/1, 59-59/1, 0-59/30)
     """
 
     def __init__(self, field, star_range):
-        self.ranges = tuple(str(r) for r in field.split(","))
+        field = field.replace("*", star_range)
+        self.ranges = tuple(Range(r) for r in field.split(","))
 
     def __repr__(self):
-        return ','.join(self.ranges)
+        return ','.join(str(r) for r in self.ranges)
+
+
+class Range:
+
+    """
+    Represents a range of times, plus an optional step value.
+    >>> Range("1-4/3")
+    1-4/3
+    >>> Range("0-59")
+    0-59/1
+    >>> Range("4")
+    4-4/1
+    """
+
+    def __init__(self, range, step=1):
+        range_step = range.split('/')
+        if len(range_step) == 1:
+            self.step = 1
+        else:
+            self.step = range_step[1]
+        raw_range = range_step[0].split('-')
+        if len(raw_range) == 1:
+            self.min = raw_range[0]
+            self.max = raw_range[0]
+        else:
+            self.min, self.max = raw_range
+
+    def __repr__(self):
+        return '{}-{}/{}'.format(self.min, self.max, self.step)
 
 if __name__ == "__main__":
     import doctest
