@@ -1,22 +1,22 @@
 """
-This file parses crontabs in order to manipulate them
+This file parses Crontabs in order to manipulate them
 >>> from io import StringIO
->>> CronTab(StringIO("#comment\\n  \t\\nVAR=3\\n* * * * * true"))
-<__main__.CronTab object at 0x...>
+>>> Crontab(StringIO("#comment\\n  \t\\nVAR=3\\n* * * * * true"))
+<__main__.Crontab object at 0x...>
 """
 
 import re
 
 
-class CronTab:
+class Crontab:
 
     """
-    Parses a CronTab looking for jobs. We only care about jobs for this
+    Parses a crontab looking for jobs. We only care about jobs for this
     task, so we're ignoring environment variables as well as comments and
     blank lines.
     >>> from io import StringIO
-    >>> CronTab(StringIO("* * * * * true")).jobs
-    [<__main__.CronJob object at 0x...>]
+    >>> Crontab(StringIO("* * * * * true")).jobs
+    [<__main__.Job object at 0x...>]
     """
 
     def __init__(self, file):
@@ -27,19 +27,19 @@ class CronTab:
                     re.match("\w+\s*=", line)):
                 continue
             else:
-                self.jobs.append(CronJob(line))
+                self.jobs.append(Job(line))
 
 
-class CronJob:
+class Job:
 
     """
-    Represents a CronJob. This handles parsing of the job to get timing
+    Represents a cron job. This handles parsing of the job to get timing
     information, as well as determining when the job will be run next.
-    >>> CronJob("* * * * * true").times
+    >>> Job("* * * * * true").times
     (*, *, *, *, *)
-    >>> CronJob("* * * * * true").job
+    >>> Job("* * * * * true").job
     'true'
-    >>> CronJob("* * * * * echo test").job
+    >>> Job("* * * * * echo test").job
     'echo test'
     """
 
@@ -47,17 +47,17 @@ class CronJob:
 
     def __init__(self, line):
         line = line.split(maxsplit=5)
-        self.times = tuple(CronSet(f, r) for f, r in
-                           zip(line, CronJob.STAR_RANGES))
+        self.times = tuple(Set(f, r) for f, r in
+                           zip(line, Job.STAR_RANGES))
         self.job = line[5]
 
 
-class CronSet:
+class Set:
 
     """
     Represents a set of ranges in one particular field of one particular
     job.
-    >>> CronSet("1-5/4,34-57,59,*/30", "0-59").ranges
+    >>> Set("1-5/4,34-57,59,*/30", "0-59").ranges
     ('1-5/4', '34-57', '59', '*/30')
     """
 
