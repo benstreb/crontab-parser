@@ -150,9 +150,10 @@ class Range:
                 self.max = int(raw_range[0])
             elif len(raw_range) == 2:
                 self.min, self.max = map(int, raw_range)
+                if self.min > self.max:
+                    raise CronSyntaxError("Invalid Field", error_info)
             else:
-                raise CronSyntaxError("Invalid Field",
-                                      error_info)
+                raise CronSyntaxError("Invalid Field", error_info)
         except ValueError:
             raise CronSyntaxError("Invalid Field", error_info) from None
 
