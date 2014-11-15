@@ -39,10 +39,12 @@ class CronJob:
     ['*', '*', '*', '*', '*']
     >>> CronJob("* * * * * true").job
     'true'
+    >>> CronJob("* * * * * echo test").job
+    'echo test'
     """
 
     def __init__(self, line):
-        line = line.split()
+        line = line.split(maxsplit=5)
         self.times = line[:5]
         self.job = line[5]
 
