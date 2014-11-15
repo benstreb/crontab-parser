@@ -2,7 +2,7 @@
 This file parses crontabs in order to manipulate them
 >>> from io import StringIO
 >>> CronTab(StringIO("#comment\\n  \t\\nVAR=3\\n* * * * * true"))
-CronTab(jobs=['* * * * * true'])
+CronTab(jobs=[CronJob('* * * * * true')])
 """
 
 import re
@@ -18,10 +18,19 @@ class CronTab:
                     re.match("\w+\s*=", line)):
                 continue
             else:
-                self.jobs.append(line)
+                self.jobs.append(CronJob(line))
 
     def __repr__(self):
-        return "CronTab(jobs="+repr(self.jobs)+")"
+        return "CronTab(jobs={})".format(repr(self.jobs))
+
+
+class CronJob:
+
+    def __init__(self, line):
+        self.times = line
+
+    def __repr__(self):
+        return "CronJob('{}')".format(self.times)
 
 if __name__ == "__main__":
     import doctest
