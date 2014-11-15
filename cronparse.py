@@ -49,7 +49,17 @@ class Job:
     'echo test'
     """
 
-    STAR_RANGES = ("0-59", "0-23", "1-31", "1-12", "1-7")
+    MINUTE_RANGE = (0, 59)
+    HOUR_RANGE = (0, 23)
+    DOM_RANGE = (1, 31)
+    MONTH_RANGE = (1, 12)
+    DOW_RANGE = (1, 7)
+    STAR_RANGES = (
+        MINUTE_RANGE,
+        HOUR_RANGE,
+        DOM_RANGE,
+        MONTH_RANGE,
+        DOW_RANGE)
 
     def __init__(self, raw_line):
         line = raw_line.split(maxsplit=5)
@@ -67,12 +77,11 @@ class Set:
     """
     Represents a set of ranges in one particular field of one particular
     job.
-    >>> Set("1-5/4,34-57,59,*/30", "0-59").ranges
+    >>> Set("1-5/4,34-57,59,*/30", Job.MINUTE_RANGE).ranges
     (1-5/4, 34-57/1, 59-59/1, 0-59/30)
     """
 
     def __init__(self, field, star_range):
-        field = field.replace("*", star_range)
         self.ranges = tuple(Range(r, star_range) for r in field.split(","))
 
     def __repr__(self):
@@ -83,53 +92,52 @@ class Range:
 
     """
     Represents a range of times, plus an optional step value.
-    >>> Range("1-4/3", "0-59")
+    >>> Range("1-4/3", Job.MINUTE_RANGE)
     1-4/3
-    >>> Range("0-59", "0-59")
+    >>> Range("0-59", Job.MINUTE_RANGE)
     0-59/1
-    >>> Range("4", "0-59")
+    >>> Range("4", Job.MINUTE_RANGE)
     4-4/1
-    >>> Range("*/5", "0-59")
+    >>> Range("*/5", Job.MINUTE_RANGE)
     0-59/5
-    >>> Range("*", "1-7")
+    >>> Range("*", Job.DOW_RANGE)
     1-7/1
-    >>> Range("", "0-59")
+    >>> Range("", Job.MINUTE_RANGE)
     Traceback (most recent call last):
     ...
     CronSyntaxError: Invalid Field
-    >>> Range("1-4/3/5", "0-59")
+    >>> Range("1-4/3/5", Job.MINUTE_RANGE)
     Traceback (most recent call last):
     ...
     CronSyntaxError: Invalid Field
-    >>> Range("/5", "0-59")
+    >>> Range("/5", Job.MINUTE_RANGE)
     Traceback (most recent call last):
     ...
     CronSyntaxError: Invalid Field
-    >>> Range("", "0-59")
+    >>> Range("", Job.MINUTE_RANGE)
     Traceback (most recent call last):
     ...
     CronSyntaxError: Invalid Field
 
-    >>> Range("1-4-3", "0-59")
+    >>> Range("1-4-3", Job.MINUTE_RANGE)
     Traceback (most recent call last):
     ...
     CronSyntaxError: Invalid Field
-    >>> Range("*", "54-")
-    Traceback (most recent call last):
-    ...
-    AssertionError
     """
 
     def __init__(self, range, star_range):
         error_info = ("<string>", -1, -1, range)
-        assert(re.match("\d+-\d+", star_range))
-        range = range.replace("*", star_range)
+        (self.star_min, self.star_max) = star_range
+        range = range.replace("*", "{}-{}".format(*star_range))
         range_step = range.split('/')
         if len(range_step) == 1:
             self.step = 1
         elif len(range_step) == 2:
             try:
                 self.step = int(range_step[1])
+                if self.step < 0:
+                    raise CronSyntaxError("Invalid Field",
+                                          error_info)
             except IndexError or ValueError:
                 raise CronSyntaxError("Invalid Field",
                                       error_info) from None
