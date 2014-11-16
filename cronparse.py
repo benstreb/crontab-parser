@@ -1,5 +1,4 @@
 #!/bin/python
-from __future__ import print_function
 
 """
 This file parses Crontabs in order to manipulate them
