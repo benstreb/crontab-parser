@@ -37,6 +37,24 @@ class Crontab:
             e.lineno = lineno
             raise
 
+    def next_runs(self, now=None):
+        """
+        Returns a generator yielding a tuple containing each job as a
+        string and when it's next expected to run as a datetime.
+        >>> from io import StringIO
+        >>> tuple(Crontab(StringIO("0 * * * * true\\n0 0 * * * false")
+        ...               ).next_runs(
+        ...     datetime.datetime(2014, 11, 15, 17, 4))) == (
+        ...     ('true', datetime.datetime(2014, 11, 15, 18, 0)),
+        ...     ('false', datetime.datetime(2014, 11, 16, 0, 0)))
+        True
+        >>> now = datetime.datetime.now()
+        >>> run = tuple(Crontab(StringIO("* * * * * true")).next_runs())
+        """
+        if now is None:
+            now = datetime.datetime.now()
+        return ((job.job, job.next_value(now)) for job in self.jobs)
+
 
 class Job:
 
