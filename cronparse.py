@@ -3,8 +3,9 @@
 """
 This file parses Crontabs in order to manipulate them
 >>> from io import StringIO
->>> Crontab(StringIO("#comment\\n  \t\\nVAR=3\\n* * * * * true"))
-<__main__.Crontab object at 0x...>
+>>> crontab = Crontab(StringIO("#comment\\n  \t\\nVAR=3\\n* * 1 * * true"))
+>>> tuple(crontab.next_runs(now=datetime.datetime(2014, 11, 15, 17, 4)))[0]
+('true', datetime.datetime(2014, 12, 1, 0, 0))
 """
 
 import argparse
@@ -102,6 +103,9 @@ class Job:
         >>> Job("* * * * * true").next_value(
         ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
         datetime.datetime(2014, 11, 15, 17, 5)
+        >>> Job("* * 1 * * true").next_value(
+        ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
+        datetime.datetime(2014, 12, 1, 0, 0)
         >>> end_of_year = datetime.datetime(2014, 12, 31, 23, 59)
         >>> Job("* * * * * true").next_value(end_of_year)
         datetime.datetime(2015, 1, 1, 0, 0)
@@ -111,39 +115,55 @@ class Job:
         ...     datetime.datetime(2196, 2, 29, 23, 59))
         datetime.datetime(2204, 2, 29, 0, 0)
         """
-        c_min, c_hour, c_dom, c_month, c_dow, c_year = (
-            dt.minute, dt.hour, dt.day, dt.month, dt.isoweekday(), dt.year)
+        #dt.minute, dt.hour, dt.day, dt.month, dt.isoweekday(), dt.year)
+        dt = dt.replace(second=0)
+        def find_minute_hour(dt, minute_carry=True):
+            minute_carry, next_minute = self.mins.next_value(
+                dt.minute, minute_carry)
+            hour_carry, next_hour = self.hours.next_value(
+                dt.hour, minute_carry)
+            if hour_carry:
+                _, next_minute = self.mins.next_value(0, carry=False)
+            try:
+                return (hour_carry,
+                        dt.replace(hour=next_hour, minute=next_minute))
+            except:
+                raise ValueError(
+                    "Couldn't find a valid time for the cron job") from None
 
-        def find_next_date(next_min, next_hour, next_dom,
-                           next_month, next_year, specifics):
-            for i in range(1000):
-                (min_carry, next_min) = self.mins.next_value(c_min)
-                (hour_carry, next_hour) = self.hours.next_value(c_hour,
-                                                                min_carry)
-                dom_carry, next_dom = specifics(hour_carry)
-                (month_carry, next_month) = self.months.next_value(
-                    c_month, dom_carry)
-                next_year += month_carry
+        def find_dom_month_year(dt, hour_carry):
+            dom = dt.day
+            month = dt.month
+            year = dt.year
+            for i in range(100):
+                dom_carry, dom = self.doms.next_value(dom, hour_carry)
+                month_carry, month = self.months.next_value(month, dom_carry)
+                year += month_carry
+                if month_carry:
+                    _, dom = self.doms.next_value(0, carry=False)
                 try:
-                    return datetime.datetime(
-                        next_year, next_month, next_dom, next_hour, next_min)
+                    return (dom_carry or month_carry,
+                            dt.replace(year=year, month=month, day=dom))
                 except ValueError:
-                    continue
-            if i == 999:
-                raise ValueError("Couldn't find a valid time for the cron job")
+                    continue  # There should be something here
+            raise ValueError("Couldn't find a valid time for the cron job")
 
-        def specifics_dom(next_dom):
-            def specifics_dom(hour_carry):
-                nonlocal next_dom
-                (dom_carry, next_dom) = self.doms.next_value(
-                    next_dom, hour_carry)
-                return dom_carry, next_dom
-            return specifics_dom
+        hour_carry, time = find_minute_hour(dt)
+        high_carry, dom_dt = find_dom_month_year(time, hour_carry)
+        if high_carry:
+            dom_dt = find_minute_hour(
+                dom_dt.replace(hour=0, minute=0), minute_carry=False)[1]
 
-        def specifics_dow(next_dow, next_date):
+
+
+        def specifics_dow(current_dom, next_dow, next_date):
             def specifics_dow(hour_carry):
                 nonlocal next_dow, next_date
                 current_dow = next_dow
+
+
+                (month_carry, next_month) = self.months.next_value(
+                    c_month, carry=False)
                 (dow_carry, next_dow) = self.dows.next_value(
                     next_dow, hour_carry)
                 current_date = next_date
@@ -152,18 +172,13 @@ class Job:
                 return next_date.month - current_date.month, next_date.day
             return specifics_dow
 
-        dom_next_date = find_next_date(
-            c_min, c_hour, c_dom, c_month, c_year, specifics_dom(c_dom))
-        dow_next_date = find_next_date(
-            c_min, c_hour, c_dom, c_month, c_year, specifics_dow(
-                c_dow, datetime.date(c_year, c_month, c_dom)))
-        if self.dow_specified and self.dom_specified:
-            return min(dom_next_date, dow_next_date)
-        elif self.dow_specified and not self.dom_specified:
-            return dow_next_date
-        else:
-            return dom_next_date
-        return min(dom_next_date, dow_next_date)
+        #if self.dow_specified and self.dom_specified:
+        #    return min(dom_dt, dow_next_date)
+        #elif self.dow_specified and not self.dom_specified:
+        #    return dow_next_date
+        #else:
+        #    return dom_next_date
+        return dom_dt
 
 
 class Set:
@@ -293,7 +308,7 @@ class Range:
         """
         distance = ceil((current + carry - self.min)/self.step)
         next = self.min + self.step*distance
-        if current+carry < self.min:
+        if current+carry <= self.min:
             return (False, self.min)
         elif next > self.max:
             return (True, self.min)
@@ -314,16 +329,12 @@ class Range:
         ...     assert v.next_value(s, c) == v.validate(s, c), (
         ...             v, v.next_value(s, c), v.validate(s, c))
         """
-        min = self.min
-        for i in range(100):
-            if current+carry < self.min:
-                return (False, self.min)
-            elif min > self.max:
-                return (True, self.min)
-            elif min >= current+carry:
-                return (False, min)
-            min += self.step
-        assert False, "Why isn't min bigger than self.max or current+1 yet?"
+        if current+carry < self.min:
+            return (False, self.min)
+        for i in range(self.min, self.max+1, self.step):
+            if i >= current+carry:
+                return (False, i)
+        return (True, self.min)
 
 
 class CronSyntaxError(SyntaxError):
