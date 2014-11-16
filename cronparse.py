@@ -1,3 +1,6 @@
+#!/bin/python
+from __future__ import print_function
+
 """
 This file parses Crontabs in order to manipulate them
 >>> from io import StringIO
@@ -5,6 +8,7 @@ This file parses Crontabs in order to manipulate them
 <__main__.Crontab object at 0x...>
 """
 
+import argparse
 import re
 import datetime
 from math import ceil
@@ -329,3 +333,10 @@ class CronSyntaxError(SyntaxError):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    p = argparse.ArgumentParser(description="""Reads through a crontab and
+                                 prints out each job and when it will run""")
+    p.add_argument('crontab', help="the location of the crontab to parse")
+    args = p.parse_args()
+    with open(args.crontab, 'r') as crontab:
+        for job, time in Crontab(crontab).next_runs():
+            print("{}: {}".format(str(time), job))
