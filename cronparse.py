@@ -6,6 +6,7 @@ This file parses Crontabs in order to manipulate them
 """
 
 import re
+import datetime
 from math import ceil
 
 
@@ -42,7 +43,8 @@ class Job:
     """
     Represents a cron job. This handles parsing of the job to get timing
     information, as well as determining when the job will be run next.
-    >>> Job("* * * * * true").times
+    >>> job = Job("* * * * * true")
+    >>> (job.mins, job.hours, job.doms, job.months, job.dows)
     (0-59/1, 0-23/1, 1-31/1, 1-12/1, 1-7/1)
     >>> Job("* * * * * true").job
     'true'
@@ -64,13 +66,83 @@ class Job:
 
     def __init__(self, raw_line):
         line = raw_line.split(maxsplit=5)
-        self.times = tuple(Set(f, r) for f, r in
-                           zip(line, Job.STAR_RANGES))
-        assert len(self.times) <= 5
-        if len(self.times) < 5:
-            raise CronSyntaxError("Invalid job",
-                                  (raw_line, -1, -1, raw_line))
+        try:
+            (self.mins, self.hours, self.doms, self.months, self.dows) = tuple(
+                Set(f, r) for f, r in zip(line, Job.STAR_RANGES))
+            self.dom_specified = line[2] != '*'
+            self.dow_specified = line[4] != '*'
+        except ValueError:
+            raise CronSyntaxError("Invalid job", (raw_line, -1, -1, raw_line))
         self.job = line[5]
+
+    def next_value(self, dt):
+        """
+        Returns the next time this cron job will run.
+        >>> Job("* * * * * true").next_value(
+        ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
+        datetime.datetime(2014, 11, 15, 17, 5)
+        >>> end_of_year = datetime.datetime(2014, 12, 31, 23, 59)
+        >>> Job("* * * * * true").next_value(end_of_year)
+        datetime.datetime(2015, 1, 1, 0, 0)
+        >>> Job("* * 29 2 * true").next_value(end_of_year)
+        datetime.datetime(2016, 2, 29, 0, 0)
+        >>> Job("* * 29 2 * true").next_value(
+        ...     datetime.datetime(2196, 2, 29, 23, 59))
+        datetime.datetime(2204, 2, 29, 0, 0)
+        """
+        c_min, c_hour, c_dom, c_month, c_dow, c_year = (
+            dt.minute, dt.hour, dt.day, dt.month, dt.isoweekday(), dt.year)
+
+        def try_to(next_min, next_hour, next_dom,
+                   next_month, next_year, specifics):
+            for i in range(1000):
+                (min_carry, next_min) = self.mins.next_value(c_min)
+                (hour_carry, next_hour) = self.hours.next_value(c_hour,
+                                                                min_carry)
+                dom_carry, next_dom = specifics(hour_carry)
+                (month_carry, next_month) = self.months.next_value(
+                    c_month, dom_carry)
+                next_year += month_carry
+                try:
+                    return datetime.datetime(
+                        next_year, next_month, next_dom, next_hour, next_min)
+                except ValueError:
+                    continue
+            if i == 999:
+                raise ValueError("Couldn't find a valid time for the cron job")
+
+        def specifics_dom(next_dom):
+            def specifics_dom(hour_carry):
+                nonlocal next_dom
+                (dom_carry, next_dom) = self.doms.next_value(
+                    next_dom, hour_carry)
+                return dom_carry, next_dom
+            return specifics_dom
+
+        def specifics_dow(next_dow, next_date):
+            def specifics_dow(hour_carry):
+                nonlocal next_dow, next_date
+                current_dow = next_dow
+                (dow_carry, next_dow) = self.dows.next_value(
+                    next_dow, hour_carry)
+                current_date = next_date
+                next_date += datetime.timedelta(
+                    days=next_dow-current_dow, weeks=dow_carry)
+                return next_date.month - current_date.month, next_date.day
+            return specifics_dow
+
+        dom_next_date = try_to(
+            c_min, c_hour, c_dom, c_month, c_year, specifics_dom(c_dom))
+        dow_next_date = try_to(
+            c_min, c_hour, c_dom, c_month, c_year, specifics_dow(
+                c_dow, datetime.date(c_year, c_month, c_dom)))
+        if self.dow_specified and self.dom_specified:
+            return min(dom_next_date, dow_next_date)
+        elif self.dow_specified and not self.dom_specified:
+            return dow_next_date
+        else:
+            return dom_next_date
+        return min(dom_next_date, dow_next_date)
 
 
 class Set:
@@ -87,6 +159,17 @@ class Set:
 
     def __repr__(self):
         return ','.join(str(r) for r in self.ranges)
+
+    def next_value(self, current, carry=True):
+        """
+        Finds the next occurring time for a set of ranges. This should
+        be the first of the next_values of all of the ranges in the set.
+        >>> Set("1-5/4,34-57,59,*/30", Job.MINUTE_RANGE).next_value(23)
+        (False, 30)
+        >>> Set("1-4,3-7", Job.MINUTE_RANGE).next_value(8)
+        (True, 1)
+        """
+        return min(r.next_value(current, carry) for r in self.ranges)
 
 
 class Range:
@@ -161,7 +244,7 @@ class Range:
     def __repr__(self):
         return '{}-{}/{}'.format(self.min, self.max, self.step)
 
-    def next_value(self, current):
+    def next_value(self, current, carry=True):
         """
         Returns the following value that this particular range will be
         triggered on, as well as a bool indicating if the range had to
@@ -170,6 +253,14 @@ class Range:
         (False, 5)
         >>> Range("*", Job.MINUTE_RANGE).next_value(59)
         (True, 0)
+        >>> Range("*", Job.HOUR_RANGE).next_value(23, carry=False)
+        (False, 23)
+        >>> Range("*", Job.HOUR_RANGE).next_value(23, carry=True)
+        (True, 0)
+        >>> Range("*", Job.HOUR_RANGE).next_value(24, carry=True)
+        (True, 0)
+        >>> Range("*", Job.HOUR_RANGE).next_value(0, carry=False)
+        (False, 0)
         >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(17)
         (True, 5)
         >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(11)
@@ -179,16 +270,16 @@ class Range:
         >>> Range("29-60/29", Job.MINUTE_RANGE).next_value(3)
         (False, 29)
         """
-        distance = ceil((current + 1 - self.min)/self.step)
+        distance = ceil((current + carry - self.min)/self.step)
         next = self.min + self.step*distance
-        if current+1 < self.min:
+        if current+carry < self.min:
             return (False, self.min)
         elif next > self.max:
             return (True, self.min)
         else:
             return (False, next)
 
-    def validate(self, current):
+    def validate(self, current, carry=True):
         """
         Computes the exact same thing as next_value is supposed to
         because next_value uses math that I'm not quite sure of
@@ -198,19 +289,20 @@ class Range:
         ...     v = Range("{}-{}/{}".format(min, randint(min, 59),
         ...             randint(1, 59)), Job.MINUTE_RANGE)
         ...     s = randint(0, 59)
-        ...     assert v.next_value(s) == v.validate(s), (
-        ...             v, v.next_value(s), v.validate(s))
+        ...     c = randint(0, 1)
+        ...     assert v.next_value(s, c) == v.validate(s, c), (
+        ...             v, v.next_value(s, c), v.validate(s, c))
         """
         min = self.min
         for i in range(100):
-            if current+1 < self.min:
+            if current+carry < self.min:
                 return (False, self.min)
             elif min > self.max:
                 return (True, self.min)
-            elif min >= current+1:
+            elif min >= current+carry:
                 return (False, min)
             min += self.step
-        assert False, "Why isn't current min bigger than anything yet?"
+        assert False, "Why isn't min bigger than self.max or current+1 yet?"
 
 
 class CronSyntaxError(SyntaxError):
