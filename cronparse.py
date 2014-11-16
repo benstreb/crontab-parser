@@ -114,8 +114,8 @@ class Job:
         c_min, c_hour, c_dom, c_month, c_dow, c_year = (
             dt.minute, dt.hour, dt.day, dt.month, dt.isoweekday(), dt.year)
 
-        def try_to(next_min, next_hour, next_dom,
-                   next_month, next_year, specifics):
+        def find_next_date(next_min, next_hour, next_dom,
+                           next_month, next_year, specifics):
             for i in range(1000):
                 (min_carry, next_min) = self.mins.next_value(c_min)
                 (hour_carry, next_hour) = self.hours.next_value(c_hour,
@@ -152,9 +152,9 @@ class Job:
                 return next_date.month - current_date.month, next_date.day
             return specifics_dow
 
-        dom_next_date = try_to(
+        dom_next_date = find_next_date(
             c_min, c_hour, c_dom, c_month, c_year, specifics_dom(c_dom))
-        dow_next_date = try_to(
+        dow_next_date = find_next_date(
             c_min, c_hour, c_dom, c_month, c_year, specifics_dow(
                 c_dow, datetime.date(c_year, c_month, c_dom)))
         if self.dow_specified and self.dom_specified:
