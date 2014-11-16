@@ -106,6 +106,15 @@ class Job:
         >>> Job("* * 1 * * true").next_value(
         ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
         datetime.datetime(2014, 12, 1, 0, 0)
+        >>> Job("* * * * 3 true").next_value(
+        ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
+        datetime.datetime(2014, 11, 19, 0, 0)
+        >>> Job("* * * * 3 true").next_value(
+        ...     datetime.datetime(2014, 11, 29, 17, 4, 49))
+        datetime.datetime(2014, 12, 3, 0, 0)
+        >>> Job("* * * 11 3 true").next_value(
+        ...     datetime.datetime(2014, 11, 29, 17, 4, 49))
+        datetime.datetime(2015, 11, 4, 0, 0)
         >>> end_of_year = datetime.datetime(2014, 12, 31, 23, 59)
         >>> Job("* * * * * true").next_value(end_of_year)
         datetime.datetime(2015, 1, 1, 0, 0)
@@ -117,6 +126,7 @@ class Job:
         """
         #dt.minute, dt.hour, dt.day, dt.month, dt.isoweekday(), dt.year)
         dt = dt.replace(second=0)
+
         def find_minute_hour(dt, minute_carry=True):
             minute_carry, next_minute = self.mins.next_value(
                 dt.minute, minute_carry)
@@ -140,7 +150,7 @@ class Job:
                 month_carry, month = self.months.next_value(month, dom_carry)
                 year += month_carry
                 if month_carry:
-                    _, dom = self.doms.next_value(0, carry=False)
+                    dom_carry, dom = self.doms.next_value(0, carry=False)
                 try:
                     return (dom_carry or month_carry,
                             dt.replace(year=year, month=month, day=dom))
@@ -148,37 +158,43 @@ class Job:
                     continue  # There should be something here
             raise ValueError("Couldn't find a valid time for the cron job")
 
+        def find_dow_month_year(dt, hour_carry):
+            old_dow = dt.isoweekday() % 7
+            month = dt.month
+            dow_carry, dow = self.dows.next_value(
+                old_dow, carry=hour_carry)
+            delta = dows_to_timedelta(old_dow, dow)
+            month_carry, next_month = self.months.next_value(
+                month, carry=False)
+            if (dt + delta).month == month and next_month == month:
+                return dow_carry, dt + delta
+
+            month_carry, next_month = self.months.next_value(month, carry=True)
+            dt = dt.replace(year=dt.year+month_carry,
+                            month=next_month, day=1)
+
+            tmp_dow = dt.isoweekday() % 7
+            _, dow = self.dows.next_value(tmp_dow, carry=False)
+            return True, dt + dows_to_timedelta(tmp_dow, dow)
+
         hour_carry, time = find_minute_hour(dt)
-        high_carry, dom_dt = find_dom_month_year(time, hour_carry)
-        if high_carry:
-            dom_dt = find_minute_hour(
-                dom_dt.replace(hour=0, minute=0), minute_carry=False)[1]
+        dom_dt, dow_dt = (find_minute_hour(
+            dt.replace(hour=0, minute=0), minute_carry=False)[1]
+            if high_carry else dt
+            for high_carry, dt in (find_dom_month_year(time, hour_carry),
+                                   find_dow_month_year(time, hour_carry)))
+
+        if self.dow_specified and self.dom_specified:
+            return min(dom_dt, dow_dt)
+        elif self.dow_specified and not self.dom_specified:
+            return dow_dt
+        else:
+            return dom_dt
 
 
-
-        def specifics_dow(current_dom, next_dow, next_date):
-            def specifics_dow(hour_carry):
-                nonlocal next_dow, next_date
-                current_dow = next_dow
-
-
-                (month_carry, next_month) = self.months.next_value(
-                    c_month, carry=False)
-                (dow_carry, next_dow) = self.dows.next_value(
-                    next_dow, hour_carry)
-                current_date = next_date
-                next_date += datetime.timedelta(
-                    days=next_dow-current_dow, weeks=dow_carry)
-                return next_date.month - current_date.month, next_date.day
-            return specifics_dow
-
-        #if self.dow_specified and self.dom_specified:
-        #    return min(dom_dt, dow_next_date)
-        #elif self.dow_specified and not self.dom_specified:
-        #    return dow_next_date
-        #else:
-        #    return dom_next_date
-        return dom_dt
+def dows_to_timedelta(current, next):
+    return datetime.timedelta(
+        days=next-current, weeks=1 if next < current else 0)
 
 
 class Set:
