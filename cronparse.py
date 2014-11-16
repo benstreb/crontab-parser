@@ -331,18 +331,36 @@ class CronSyntaxError(SyntaxError):
 
 
 def parse_date(date_str):
+    """
+    Parses a string of the form /mm/dd/yyyy and returns it at as a date
+    >>> parse_date("1/31/2014")
+    datetime.date(2014, 1, 31)
+    >>> parse_date("1/31")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: date should be of the form mm/dd/yyyy: was 1/31
+    """
     try:
         (month, day, year) = map(int, date_str.split('/'))
         return datetime.date(year, month, day)
     except:
-        print(year, month, day)
         raise argparse.ArgumentTypeError(
-            "date should be of the form mm/dd/yyyy: was {}".format(date_str))
+            "date should be of the form mm/dd/yyyy: was {}".format(date_str)
+            ) from None
 
 
 def parse_time(time_str):
+    """
+    Parses a string of the form 1:59 and returns it at as a time
+    >>> parse_time("1:59")
+    datetime.time(1, 59)
+    >>> parse_time("59")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: time should be of the form hr:min: was 59
+    """
     try:
-        (hour, min) = map(int, time.split(':'))
+        (hour, min) = map(int, time_str.split(':'))
         return datetime.time(hour, min)
     except:
         raise argparse.ArgumentTypeError(
