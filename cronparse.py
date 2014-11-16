@@ -330,13 +330,41 @@ class Range:
 class CronSyntaxError(SyntaxError):
     pass
 
+
+def parse_date(date_str):
+    try:
+        (month, day, year) = map(int, date_str.split('/'))
+        return datetime.date(year, month, day)
+    except:
+        print(year, month, day)
+        raise argparse.ArgumentTypeError(
+            "date should be of the form mm/dd/yyyy: was {}".format(date_str))
+
+
+def parse_time(time_str):
+    try:
+        (hour, min) = map(int, time.split(':'))
+        return datetime.time(hour, min)
+    except:
+        raise argparse.ArgumentTypeError(
+            "time should be of the form hr:min: was {}".format(time_str))
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
     p = argparse.ArgumentParser(description="""Reads through a crontab and
                                  prints out each job and when it will run""")
     p.add_argument('crontab', help="the location of the crontab to parse")
+    p.add_argument('--date', type=parse_date,
+                   default=datetime.datetime.now().date(),
+                   help="""fake that the program is being run on this date""")
+    p.add_argument('--time', type=parse_time,
+                   default=datetime.datetime.now().timetz(),
+                   help="""fake that the program is being run at this time""")
     args = p.parse_args()
     with open(args.crontab, 'r') as crontab:
-        for job, time in Crontab(crontab).next_runs():
+        now = datetime.datetime.now()
+        dt = datetime.datetime.combine(args.date, args.time)
+        for job, time in Crontab(crontab).next_runs(dt):
             print("{}: {}".format(str(time), job))
