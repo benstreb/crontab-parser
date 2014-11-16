@@ -6,6 +6,7 @@ This file parses Crontabs in order to manipulate them
 """
 
 import re
+from math import ceil
 
 
 class Crontab:
@@ -65,7 +66,7 @@ class Job:
         line = raw_line.split(maxsplit=5)
         self.times = tuple(Set(f, r) for f, r in
                            zip(line, Job.STAR_RANGES))
-        assert(len(self.times) <= 5)
+        assert len(self.times) <= 5
         if len(self.times) < 5:
             raise CronSyntaxError("Invalid job",
                                   (raw_line, -1, -1, raw_line))
@@ -159,6 +160,57 @@ class Range:
 
     def __repr__(self):
         return '{}-{}/{}'.format(self.min, self.max, self.step)
+
+    def next_value(self, current):
+        """
+        Returns the following value that this particular range will be
+        triggered on, as well as a bool indicating if the range had to
+        wrap around to reach this value.
+        >>> Range("*", Job.MINUTE_RANGE).next_value(4)
+        (False, 5)
+        >>> Range("*", Job.MINUTE_RANGE).next_value(59)
+        (True, 0)
+        >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(17)
+        (True, 5)
+        >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(11)
+        (False, 16)
+        >>> Range("59-60/29", Job.MINUTE_RANGE).next_value(3)
+        (False, 59)
+        >>> Range("29-60/29", Job.MINUTE_RANGE).next_value(3)
+        (False, 29)
+        """
+        distance = ceil((current + 1 - self.min)/self.step)
+        next = self.min + self.step*distance
+        if current+1 < self.min:
+            return (False, self.min)
+        elif next > self.max:
+            return (True, self.min)
+        else:
+            return (False, next)
+
+    def validate(self, current):
+        """
+        Computes the exact same thing as next_value is supposed to
+        because next_value uses math that I'm not quite sure of
+        >>> from random import randint
+        >>> for i in range(1000):
+        ...     min = randint(0, 59)
+        ...     v = Range("{}-{}/{}".format(min, randint(min, 59),
+        ...             randint(1, 59)), Job.MINUTE_RANGE)
+        ...     s = randint(0, 59)
+        ...     assert v.next_value(s) == v.validate(s), (
+        ...             v, v.next_value(s), v.validate(s))
+        """
+        min = self.min
+        for i in range(100):
+            if current+1 < self.min:
+                return (False, self.min)
+            elif min > self.max:
+                return (True, self.min)
+            elif min >= current+1:
+                return (False, min)
+            min += self.step
+        assert False, "Why isn't current min bigger than anything yet?"
 
 
 class CronSyntaxError(SyntaxError):
