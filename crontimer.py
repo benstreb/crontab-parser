@@ -11,7 +11,8 @@ This file parses Crontabs in order to manipulate them
 import argparse
 import re
 import datetime
-from math import ceil
+
+from parser import parse_range
 
 
 class Crontab:
@@ -207,7 +208,8 @@ class Set:
     """
 
     def __init__(self, field, star_range):
-        self.ranges = tuple(Range(r, star_range) for r in field.split(","))
+        self.ranges = tuple(
+            parse_range(r, star_range) for r in field.split(","))
 
     def __repr__(self):
         return ','.join(str(r) for r in self.ranges)
@@ -222,135 +224,6 @@ class Set:
         (True, 1)
         """
         return min(r.next_value(current, carry) for r in self.ranges)
-
-
-class Range:
-
-    """
-    Represents a range of times, plus an optional step value.
-    >>> Range("1-4/3", Job.MINUTE_RANGE)
-    1-4/3
-    >>> Range("0-59", Job.MINUTE_RANGE)
-    0-59/1
-    >>> Range("4", Job.MINUTE_RANGE)
-    4-4/1
-    >>> Range("*/5", Job.MINUTE_RANGE)
-    0-59/5
-    >>> Range("*", Job.DOW_RANGE)
-    1-7/1
-    >>> Range("", Job.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> Range("1-4/3/5", Job.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> Range("/5", Job.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> Range("", Job.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-
-    >>> Range("1-4-3", Job.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    """
-
-    def __init__(self, range, star_range):
-        error_info = ("<string>", -1, -1, range)
-        (self.star_min, self.star_max) = star_range
-        range = range.replace("*", "{}-{}".format(*star_range))
-        range_step = range.split('/')
-        if len(range_step) == 1:
-            self.step = 1
-        elif len(range_step) == 2:
-            try:
-                self.step = int(range_step[1])
-                if self.step < 0:
-                    raise CronSyntaxError("Invalid Field",
-                                          error_info)
-            except IndexError or ValueError:
-                raise CronSyntaxError("Invalid Field",
-                                      error_info) from None
-        else:
-            raise CronSyntaxError("Invalid Field", error_info)
-        raw_range = range_step[0].split('-')
-        try:
-            if len(raw_range) == 1:
-                self.min = int(raw_range[0])
-                self.max = int(raw_range[0])
-            elif len(raw_range) == 2:
-                self.min, self.max = map(int, raw_range)
-                if self.min > self.max:
-                    raise CronSyntaxError("Invalid Field", error_info)
-            else:
-                raise CronSyntaxError("Invalid Field", error_info)
-        except ValueError:
-            raise CronSyntaxError("Invalid Field", error_info) from None
-
-    def __repr__(self):
-        return '{}-{}/{}'.format(self.min, self.max, self.step)
-
-    def next_value(self, current, carry=True):
-        """
-        Returns the following value that this particular range will be
-        triggered on, as well as a bool indicating if the range had to
-        wrap around to reach this value.
-        >>> Range("*", Job.MINUTE_RANGE).next_value(4)
-        (False, 5)
-        >>> Range("*", Job.MINUTE_RANGE).next_value(59)
-        (True, 0)
-        >>> Range("*", Job.HOUR_RANGE).next_value(23, carry=False)
-        (False, 23)
-        >>> Range("*", Job.HOUR_RANGE).next_value(23, carry=True)
-        (True, 0)
-        >>> Range("*", Job.HOUR_RANGE).next_value(24, carry=True)
-        (True, 0)
-        >>> Range("*", Job.HOUR_RANGE).next_value(0, carry=False)
-        (False, 0)
-        >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(17)
-        (True, 5)
-        >>> Range("5-20/11", Job.MINUTE_RANGE).next_value(11)
-        (False, 16)
-        >>> Range("59-60/29", Job.MINUTE_RANGE).next_value(3)
-        (False, 59)
-        >>> Range("29-60/29", Job.MINUTE_RANGE).next_value(3)
-        (False, 29)
-        """
-        distance = ceil((current + carry - self.min)/self.step)
-        next = self.min + self.step*distance
-        if current+carry <= self.min:
-            return (False, self.min)
-        elif next > self.max:
-            return (True, self.min)
-        else:
-            return (False, next)
-
-    def validate(self, current, carry=True):
-        """
-        Computes the exact same thing as next_value is supposed to
-        because next_value uses math that I'm not quite sure of
-        >>> from random import randint
-        >>> for i in range(1000):
-        ...     min = randint(0, 59)
-        ...     v = Range("{}-{}/{}".format(min, randint(min, 59),
-        ...             randint(1, 59)), Job.MINUTE_RANGE)
-        ...     s = randint(0, 59)
-        ...     c = randint(0, 1)
-        ...     assert v.next_value(s, c) == v.validate(s, c), (
-        ...             v, v.next_value(s, c), v.validate(s, c))
-        """
-        if current+carry < self.min:
-            return (False, self.min)
-        for i in range(self.min, self.max+1, self.step):
-            if i >= current+carry:
-                return (False, i)
-        return (True, self.min)
 
 
 class CronSyntaxError(SyntaxError):
@@ -397,6 +270,7 @@ def parse_time(time_str):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    exit(0)
     p = argparse.ArgumentParser(description="""Reads through a crontab and
                                  prints out each job and when it will run""")
     p.add_argument('crontab', help="the location of the crontab to parse")
