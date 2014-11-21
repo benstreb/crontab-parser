@@ -12,7 +12,7 @@ import argparse
 import re
 import datetime
 
-from parser import parse_range
+from parser import parse_range, parse_set
 
 
 class Crontab:
@@ -91,7 +91,7 @@ class Job:
         line = raw_line.split(maxsplit=5)
         try:
             (self.mins, self.hours, self.doms, self.months, self.dows) = tuple(
-                Set(f, r) for f, r in zip(line, Job.STAR_RANGES))
+                parse_set(f, r) for f, r in zip(line, Job.STAR_RANGES))
             self.dom_specified = line[2] != '*'
             self.dow_specified = line[4] != '*'
         except ValueError:
@@ -196,34 +196,6 @@ class Job:
 def dows_to_timedelta(current, next):
     return datetime.timedelta(
         days=next-current, weeks=1 if next < current else 0)
-
-
-class Set:
-
-    """
-    Represents a set of ranges in one particular field of one particular
-    job.
-    >>> Set("1-5/4,34-57,59,*/30", Job.MINUTE_RANGE).ranges
-    (1-5/4, 34-57/1, 59-59/1, 0-59/30)
-    """
-
-    def __init__(self, field, star_range):
-        self.ranges = tuple(
-            parse_range(r, star_range) for r in field.split(","))
-
-    def __repr__(self):
-        return ','.join(str(r) for r in self.ranges)
-
-    def next_value(self, current, carry=True):
-        """
-        Finds the next occurring time for a set of ranges. This should
-        be the first of the next_values of all of the ranges in the set.
-        >>> Set("1-5/4,34-57,59,*/30", Job.MINUTE_RANGE).next_value(23)
-        (False, 30)
-        >>> Set("1-4,3-7", Job.MINUTE_RANGE).next_value(8)
-        (True, 1)
-        """
-        return min(r.next_value(current, carry) for r in self.ranges)
 
 
 class CronSyntaxError(SyntaxError):

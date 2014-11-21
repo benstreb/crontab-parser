@@ -1,6 +1,16 @@
 import crontab
 
 
+def parse_set(field, star_range):
+    """
+    Parses sets of ranges.
+    >>> parse_set("1-5/4,34-57,59,*/30", crontab.MINUTE_RANGE).ranges
+    (1-5/4, 34-57/1, 59-59/1, 0-59/30)
+    """
+    ranges = tuple(parse_range(r, star_range) for r in field.split(","))
+    return crontab.Set(ranges)
+
+
 def parse_range(range_step, star_range):
     """
     Parses ranges, which are a range of values plus an optional step.

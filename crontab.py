@@ -13,13 +13,42 @@ STAR_RANGES = (
     DOW_RANGE)
 
 
+class Set:
+
+    """
+    Represents a set of ranges in one particular field of one particular
+    job.
+    >>> Set((Range(1, 5, 4), Range(34, 57, 59), Range(59,59),
+    ...      Range(0, 59, 30)))
+    1-5/4,34-57/59,59-59/1,0-59/30
+    """
+
+    def __init__(self, ranges):
+        self.ranges = ranges
+
+    def __repr__(self):
+        return ','.join(str(r) for r in self.ranges)
+
+    def next_value(self, current, carry=True):
+        """
+        Finds the next occurring time for a set of ranges. This should
+        be the first of the next_values of all of the ranges in the set.
+        >>> Set((Range(1, 5, 4), Range(34, 57, 59), Range(59,59),
+        ...      Range(0, 59, 30))).next_value(23)
+        (False, 30)
+        >>> Set((Range(1, 4), Range(3, 7))).next_value(8)
+        (True, 1)
+        """
+        return min(r.next_value(current, carry) for r in self.ranges)
+
+
 class Range:
 
     """
     Represents a range of times, plus an optional step value.
     """
 
-    def __init__(self, min, max, step):
+    def __init__(self, min, max, step=1):
         self.min = min
         self.max = max
         self.step = step
