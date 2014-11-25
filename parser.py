@@ -1,6 +1,25 @@
 import crontab
 
 
+def parse_job(raw_line):
+    """
+    Parses a job.
+    >>> job = parse_job("* * * * * true")
+    >>> (job.mins, job.hours, job.doms, job.months, job.dows)
+    (0-59/1, 0-23/1, 1-31/1, 1-12/1, 1-7/1)
+    """
+    line = raw_line.split(maxsplit=5)
+    try:
+        times = tuple(parse_set(f, r) for f, r in
+                      zip(line, crontab.STAR_RANGES))
+        job = crontab.Job(times, line[5])
+        job.dom_specified = line[2] != '*'
+        job.dow_specified = line[4] != '*'
+    except ValueError:
+        raise CronSyntaxError("Invalid job", (raw_line, -1, -1, raw_line))
+    return job
+
+
 def parse_set(field, star_range):
     """
     Parses sets of ranges.
