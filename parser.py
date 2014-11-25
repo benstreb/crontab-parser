@@ -1,4 +1,29 @@
 import crontab
+import re
+
+
+def parse_crontab(file):
+    """
+    Parses a crontab.
+    >>> from io import StringIO
+    >>> parse_crontab(StringIO("* * * * * true"))
+    [<crontab.Job object at 0x...>]
+    """
+    jobs = []
+    lineno = 0
+    try:
+        for line in file:
+            lineno += 1
+            line = line.strip()
+            if (len(line) == 0 or line.startswith("#") or
+                    re.match("\w+\s*=", line)):
+                continue
+            else:
+                jobs.append(parse_job(line))
+    except CronSyntaxError as e:
+        e.lineno = lineno
+        raise
+    return jobs
 
 
 def parse_job(raw_line):

@@ -9,7 +9,6 @@ This file parses Crontabs in order to manipulate them
 """
 
 import argparse
-import re
 import datetime
 
 import parser
@@ -27,20 +26,7 @@ class Crontab:
     """
 
     def __init__(self, file):
-        self.jobs = []
-        lineno = 0
-        try:
-            for line in file:
-                lineno += 1
-                line = line.strip()
-                if (len(line) == 0 or line.startswith("#") or
-                        re.match("\w+\s*=", line)):
-                    continue
-                else:
-                    self.jobs.append(parser.parse_job(line))
-        except CronSyntaxError as e:
-            e.lineno = lineno
-            raise
+        self.jobs = parser.parse_crontab(file)
 
     def next_runs(self, now=None):
         """
@@ -59,10 +45,6 @@ class Crontab:
         if now is None:
             now = datetime.datetime.now()
         return ((job.job, job.next_value(now)) for job in self.jobs)
-
-
-class CronSyntaxError(SyntaxError):
-    pass
 
 
 def parse_date(date_str):
