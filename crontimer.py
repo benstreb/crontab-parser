@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python3
 
 """
 This file parses Crontabs in order to manipulate them
