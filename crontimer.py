@@ -87,7 +87,6 @@ def parse_time(time_str):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    exit(0)
     p = argparse.ArgumentParser(description="""Reads through a crontab and
                                  prints out each job and when it will run""")
     p.add_argument('crontab', help="the location of the crontab to parse")
