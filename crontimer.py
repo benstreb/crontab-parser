@@ -49,7 +49,7 @@ class Crontab:
 
 def parse_date(date_str):
     """
-    Parses a string of the form /mm/dd/yyyy and returns it at as a date
+    Parses a string of the form mm/dd/yyyy and returns it at as a date
     >>> parse_date("1/31/2014")
     datetime.date(2014, 1, 31)
     >>> parse_date("1/31")
