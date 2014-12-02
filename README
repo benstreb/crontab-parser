@@ -1,2 +1,2 @@
 Prints the next time that each job in a crontab will run. Eventually, I'd like to make this a python library for parsing crontabs, as well as a more general utility for analyzing crontabs.
-Usage: crontimer.py [-h] [--date DATE] [--time TIME] crontab
+Usage: cronparser.py [-h] [--date DATE] [--time TIME] crontab
