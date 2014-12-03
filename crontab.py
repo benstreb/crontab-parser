@@ -175,6 +175,9 @@ class Set:
         """
         return min(r.next_value(current, carry) for r in self.ranges)
 
+    def __eq__(self, other):
+        return self.ranges == other.ranges
+
 
 class Range:
 
