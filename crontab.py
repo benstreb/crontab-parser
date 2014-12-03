@@ -248,6 +248,11 @@ class Range:
                 return (False, i)
         return (True, self.min)
 
+    def __eq__(self, other):
+        return (self.min == other.min
+                and self.max == other.max
+                and self.step == other.step)
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)

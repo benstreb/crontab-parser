@@ -64,31 +64,6 @@ def parse_range(range_step, star_range):
     0-59/1
     >>> parse_range("4", crontab.MINUTE_RANGE)
     4-4/1
-    >>> parse_range("*/5", crontab.MINUTE_RANGE)
-    0-59/5
-    >>> parse_range("*", crontab.DOW_RANGE)
-    1-7/1
-    >>> parse_range("", crontab.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> parse_range("1-4/3/5", crontab.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> parse_range("/5", crontab.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-    >>> parse_range("", crontab.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
-
-    >>> parse_range("1-4-3", crontab.MINUTE_RANGE)
-    Traceback (most recent call last):
-    ...
-    CronSyntaxError: Invalid Field
     """
     error_info = ("<string>", -1, -1, range_step)
     (star_min, star_max) = star_range
