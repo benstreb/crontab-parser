@@ -1,18 +1,19 @@
 import datetime
 
 from math import ceil
+from enum import Enum
+from collections import namedtuple
 
-MINUTE_RANGE = (0, 59)
-HOUR_RANGE = (0, 23)
-DOM_RANGE = (1, 31)
-MONTH_RANGE = (1, 12)
-DOW_RANGE = (1, 7)
-STAR_RANGES = (
-    MINUTE_RANGE,
-    HOUR_RANGE,
-    DOM_RANGE,
-    MONTH_RANGE,
-    DOW_RANGE)
+
+class Bounds(namedtuple('Bound', ("min", "max")), Enum):
+    minute = (0, 59)
+    hour = (0, 23)
+    dom = (1, 31)
+    month = (1, 12)
+    dow = (1, 7)
+
+    def range(self, step=1):
+        return Range(self.min, self.max, step)
 
 
 class Job:
@@ -29,18 +30,6 @@ class Job:
     >>> parser.parse_job("* * * * * echo test").job
     'echo test'
     """
-
-    MINUTE_RANGE = (0, 59)
-    HOUR_RANGE = (0, 23)
-    DOM_RANGE = (1, 31)
-    MONTH_RANGE = (1, 12)
-    DOW_RANGE = (1, 7)
-    STAR_RANGES = (
-        MINUTE_RANGE,
-        HOUR_RANGE,
-        DOM_RANGE,
-        MONTH_RANGE,
-        DOW_RANGE)
 
     def __init__(self, times, job):
         (self.mins, self.hours, self.doms, self.months, self.dows) = times
@@ -113,7 +102,7 @@ class Job:
             month = dt.month
             dow_carry, dow = self.dows.next_value(
                 old_dow, carry=hour_carry)
-            delta = dows_to_timedelta(old_dow, dow)
+            delta = _dows_to_timedelta(old_dow, dow)
             month_carry, next_month = self.months.next_value(
                 month, carry=False)
             if (dt + delta).month == month and next_month == month:
@@ -125,7 +114,7 @@ class Job:
 
             tmp_dow = dt.isoweekday() % 7
             _, dow = self.dows.next_value(tmp_dow, carry=False)
-            return True, dt + dows_to_timedelta(tmp_dow, dow)
+            return True, dt + _dows_to_timedelta(tmp_dow, dow)
 
         hour_carry, time = find_minute_hour(dt)
         dom_dt, dow_dt = (find_minute_hour(
@@ -142,7 +131,7 @@ class Job:
             return dom_dt
 
 
-def dows_to_timedelta(current, next):
+def _dows_to_timedelta(current, next):
     return datetime.timedelta(
         days=next-current, weeks=1 if next < current else 0)
 
@@ -198,19 +187,19 @@ class Range:
         Returns the following value that this particular range will be
         triggered on, as well as a bool indicating if the range had to
         wrap around to reach this value.
-        >>> all_minutes = MINUTE_RANGE + (1,)
-        >>> Range(*all_minutes).next_value(4)
+        >>> all_minutes = Bounds.minute.range()
+        >>> all_minutes.next_value(4)
         (False, 5)
-        >>> Range(*all_minutes).next_value(59)
+        >>> all_minutes.next_value(59)
         (True, 0)
-        >>> all_hours = HOUR_RANGE + (1,)
-        >>> Range(*all_hours).next_value(23, carry=False)
+        >>> all_hours = Bounds.hour.range()
+        >>> all_hours.next_value(23, carry=False)
         (False, 23)
-        >>> Range(*all_hours).next_value(23, carry=True)
+        >>> all_hours.next_value(23, carry=True)
         (True, 0)
-        >>> Range(*all_hours).next_value(24, carry=True)
+        >>> all_hours.next_value(24, carry=True)
         (True, 0)
-        >>> Range(*all_hours).next_value(0, carry=False)
+        >>> all_hours.next_value(0, carry=False)
         (False, 0)
         >>> Range(5, 20, 11).next_value(17)
         (True, 5)

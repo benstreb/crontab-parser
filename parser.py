@@ -36,7 +36,7 @@ def parse_job(raw_line):
     line = raw_line.split(maxsplit=5)
     try:
         times = tuple(parse_set(f, r) for f, r in
-                      zip(line, crontab.STAR_RANGES))
+                      zip(line, crontab.Bounds))
         job = crontab.Job(times, line[5])
         job.dom_specified = line[2] != '*'
         job.dow_specified = line[4] != '*'
@@ -48,7 +48,7 @@ def parse_job(raw_line):
 def parse_set(field, star_range):
     """
     Parses sets of ranges.
-    >>> parse_set("1-5/4,34-57,59,*/30", crontab.MINUTE_RANGE).ranges
+    >>> parse_set("1-5/4,34-57,59,*/30", crontab.Bounds.minute).ranges
     (1-5/4, 34-57/1, 59-59/1, 0-59/30)
     """
     ranges = tuple(parse_range(r, star_range) for r in field.split(","))
@@ -58,11 +58,12 @@ def parse_set(field, star_range):
 def parse_range(range_step, star_range):
     """
     Parses ranges, which are a range of values plus an optional step.
-    >>> parse_range("1-4/3", crontab.MINUTE_RANGE)
+    >>> minutes = crontab.Bounds.minute
+    >>> parse_range("1-4/3", minutes)
     1-4/3
-    >>> parse_range("0-59", crontab.MINUTE_RANGE)
+    >>> parse_range("0-59", minutes)
     0-59/1
-    >>> parse_range("4", crontab.MINUTE_RANGE)
+    >>> parse_range("4", minutes)
     4-4/1
     """
     error_info = ("<string>", -1, -1, range_step)
