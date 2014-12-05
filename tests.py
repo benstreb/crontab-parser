@@ -13,6 +13,19 @@ class TestParsing(unittest.TestCase):
         import parser
         doctest.testmod(parser, optionflags=doctest.ELLIPSIS)
 
+    def test_parse_job(self):
+        B = Bounds
+        self.assertEqual(Job((B.minute.range_set(), B.hour.range_set(),
+                              B.dom.range_set(), B.month.range_set(),
+                              B.dow.range_set()), "yes"),
+                         parse_job("* * * * * yes"))
+
+    def test_parse_set(self):
+        self.assertEqual(
+            Set((Range(1, 5, 4), Range(34, 57),
+                 Range(59, 59), Range(0, 59, 30))),
+            parse_set("1-5/4,34-57,59,*/30", Bounds.minute))
+
     def test_parse_range(self):
         equal = self.assertEqual
         equal(Range(1, 4, 3), parse_range("1-4/3", Bounds.minute))
@@ -26,19 +39,6 @@ class TestParsing(unittest.TestCase):
         raises(CronSyntaxError, parse_range, "/5", Bounds.minute)
         raises(CronSyntaxError, parse_range, "", Bounds.minute)
         raises(CronSyntaxError, parse_range, "1-4-3", Bounds.minute)
-
-    def test_parse_set(self):
-        self.assertEqual(
-            Set((Range(1, 5, 4), Range(34, 57),
-                 Range(59, 59), Range(0, 59, 30))),
-            parse_set("1-5/4,34-57,59,*/30", Bounds.minute))
-
-    def test_parse_job(self):
-        B = Bounds
-        self.assertEqual(Job((B.minute.range_set(), B.hour.range_set(),
-                              B.dom.range_set(), B.month.range_set(),
-                              B.dow.range_set()), "yes"),
-                         parse_job("* * * * * yes"))
 
 
 class TestCrontab(unittest.TestCase):
