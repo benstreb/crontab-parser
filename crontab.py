@@ -152,7 +152,7 @@ class Set:
     """
     Represents a set of ranges in one particular field of one particular
     job.
-    >>> Set((Range(1, 5, 4), Range(34, 57, 59), Range(59,59),
+    >>> Set((Range(1, 5, 4), Range(34, 57, 59), Range(59, 59),
     ...      Range(0, 59, 30)))
     1-5/4,34-57/59,59-59/1,0-59/30
     """
