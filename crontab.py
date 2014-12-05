@@ -198,20 +198,8 @@ class Range:
         Returns the following value that this particular range will be
         triggered on, as well as a bool indicating if the range had to
         wrap around to reach this value.
-        >>> all_minutes = Bounds.minute.range()
-        >>> all_minutes.next_value(4)
-        (False, 5)
-        >>> all_minutes.next_value(59)
-        (True, 0)
-        >>> all_hours = Bounds.hour.range()
-        >>> all_hours.next_value(23, carry=False)
-        (False, 23)
-        >>> all_hours.next_value(23, carry=True)
-        (True, 0)
-        >>> all_hours.next_value(24, carry=True)
-        (True, 0)
-        >>> all_hours.next_value(0, carry=False)
-        (False, 0)
+        >>> Bounds.minute.range().next_value(10)
+        (False, 11)
         >>> Range(5, 20, 11).next_value(17)
         (True, 5)
         >>> Range(5, 20, 11).next_value(11)
@@ -229,27 +217,6 @@ class Range:
             return (True, self.min)
         else:
             return (False, next)
-
-    def validate(self, current, carry=True):
-        """
-        Computes the exact same thing as next_value is supposed to
-        because next_value uses math that I'm not quite sure of
-        >>> from random import randint
-        >>> for i in range(1000):
-        ...     min = randint(0, 59)
-        ...     v = Range(min, randint(min, 59),
-        ...             randint(1, 59))
-        ...     s = randint(0, 59)
-        ...     c = randint(0, 1)
-        ...     assert v.next_value(s, c) == v.validate(s, c), (
-        ...             v, v.next_value(s, c), v.validate(s, c))
-        """
-        if current+carry < self.min:
-            return (False, self.min)
-        for i in range(self.min, self.max+1, self.step):
-            if i >= current+carry:
-                return (False, i)
-        return (True, self.min)
 
     def __eq__(self, other):
         if type(other) == tuple:
