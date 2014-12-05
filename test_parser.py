@@ -1,7 +1,7 @@
 import unittest
 import doctest
 import parser
-from parser import CronSyntaxError, parse_range, parse_set
+from parser import CronSyntaxError, parse_range, parse_set, parse_job
 from crontab import Range, Set, Job, Bounds
 
 
@@ -37,3 +37,10 @@ class TestParsing(unittest.TestCase):
             Set((Range(1, 5, 4), Range(34, 57),
                  Range(59, 59), Range(0, 59, 30))),
             parse_set("1-5/4,34-57,59,*/30", Bounds.minute))
+
+    def test_parse_job(self):
+        B = Bounds
+        self.assertEqual(Job((B.minute.range_set(), B.hour.range_set(),
+                              B.dom.range_set(), B.month.range_set(),
+                              B.dow.range_set()), "yes"),
+                         parse_job("* * * * * yes"))

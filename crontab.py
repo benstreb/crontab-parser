@@ -15,6 +15,9 @@ class Bounds(namedtuple('Bound', ("min", "max")), Enum):
     def range(self, step=1):
         return Range(self.min, self.max, step)
 
+    def range_set(self, step=1):
+        return Set((self.range(),))
+
 
 class Job:
 
@@ -130,6 +133,14 @@ class Job:
         else:
             return dom_dt
 
+    def __eq__(self, other):
+        return (self.mins == other.mins and
+                self.hours == other.hours and
+                self.doms == other.doms and
+                self.months == other.months and
+                self.dows == other.dows and
+                self.job == other.job)
+
 
 def _dows_to_timedelta(current, next):
     return datetime.timedelta(
@@ -241,9 +252,13 @@ class Range:
         return (True, self.min)
 
     def __eq__(self, other):
-        return (self.min == other.min
-                and self.max == other.max
-                and self.step == other.step)
+        if type(other) == tuple:
+            print(other)
+            raise ValueError
+        return (type(self) == type(other) and
+                self.min == other.min and
+                self.max == other.max and
+                self.step == other.step)
 
 if __name__ == "__main__":
     import doctest
