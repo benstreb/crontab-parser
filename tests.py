@@ -6,13 +6,10 @@ from os import urandom
 
 from parser import CronSyntaxError, parse_range, parse_set, parse_job
 from crontab import Range, Set, Job, Bounds
+from cronparser import Crontab
 
 
 class TestParsing(unittest.TestCase):
-
-    def test_doctests(self):
-        import parser
-        doctest.testmod(parser, optionflags=doctest.ELLIPSIS)
 
     def test_parse_job(self):
         B = Bounds
@@ -43,10 +40,6 @@ class TestParsing(unittest.TestCase):
 
 
 class TestCrontab(unittest.TestCase):
-
-    def test_doctests(self):
-        import crontab
-        doctest.testmod(crontab, optionflags=doctest.ELLIPSIS)
 
     def test_Job_init(self):
         B = Bounds
@@ -129,3 +122,20 @@ class TestCrontab(unittest.TestCase):
             c = random.randint(0, 1)
             self.assertEqual(v.next_value(s, c), validate(v, s, c),
                              "To reproduce, the seed is {}".format(seed))
+
+
+def load_tests(loader, tests, ignore):
+    import parser
+    tests.addTests(doctest.DocTestSuite(
+        parser, optionflags=doctest.ELLIPSIS))
+    import crontab
+    tests.addTests(doctest.DocTestSuite(
+        crontab, optionflags=doctest.ELLIPSIS))
+    import cronparser
+    tests.addTests(doctest.DocTestSuite(
+        cronparser, optionflags=doctest.ELLIPSIS))
+    return tests
+
+if __name__ == "__main__":
+    import unittest
+    unittest.main(module='tests')

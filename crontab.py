@@ -215,7 +215,3 @@ class Range:
                 self.min == other.min and
                 self.max == other.max and
                 self.step == other.step)
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
