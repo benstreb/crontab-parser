@@ -48,20 +48,9 @@ class Job:
         >>> parser.parse_job("* * 1 * * true").next_value(
         ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
         datetime.datetime(2014, 12, 1, 0, 0)
-        >>> parser.parse_job("* * * * 3 true").next_value(
-        ...     datetime.datetime(2014, 11, 15, 17, 4, 49))
-        datetime.datetime(2014, 11, 19, 0, 0)
-        >>> parser.parse_job("* * * * 3 true").next_value(
-        ...     datetime.datetime(2014, 11, 29, 17, 4, 49))
-        datetime.datetime(2014, 12, 3, 0, 0)
-        >>> parser.parse_job("* * * 11 3 true").next_value(
-        ...     datetime.datetime(2014, 11, 29, 17, 4, 49))
-        datetime.datetime(2015, 11, 4, 0, 0)
         >>> end_of_year = datetime.datetime(2014, 12, 31, 23, 59)
         >>> parser.parse_job("* * * * * true").next_value(end_of_year)
         datetime.datetime(2015, 1, 1, 0, 0)
-        >>> parser.parse_job("* * 29 2 * true").next_value(end_of_year)
-        datetime.datetime(2016, 2, 29, 0, 0)
         >>> parser.parse_job("* * 29 2 * true").next_value(
         ...     datetime.datetime(2196, 2, 29, 23, 59))
         datetime.datetime(2204, 2, 29, 0, 0)

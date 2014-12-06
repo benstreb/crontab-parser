@@ -1,6 +1,7 @@
 import unittest
 import doctest
 import random
+from datetime import datetime
 from os import urandom
 
 from parser import CronSyntaxError, parse_range, parse_set, parse_job
@@ -42,6 +43,51 @@ class TestParsing(unittest.TestCase):
 
 
 class TestCrontab(unittest.TestCase):
+
+    def test_doctests(self):
+        import crontab
+        doctest.testmod(crontab, optionflags=doctest.ELLIPSIS)
+
+    def test_Job_init(self):
+        B = Bounds
+        Job((B.minute.range_set(),
+             B.hour.range_set(),
+             B.dom.range_set(),
+             B.month.range_set(),
+             B.dow.range_set()),
+            "yes")
+
+    def test_Job_next_value(self):
+        import parser
+        parser.parse_job("* * * * * true").next_value(
+            datetime(2014, 11, 15, 17, 4, 49))
+        datetime(2014, 11, 15, 17, 5)
+        parser.parse_job("* * 1 * * true").next_value(
+            datetime(2014, 11, 15, 17, 4, 49))
+        datetime(2014, 12, 1, 0, 0)
+        parser.parse_job("* * * * 3 true").next_value(
+            datetime(2014, 11, 15, 17, 4, 49))
+        datetime(2014, 11, 19, 0, 0)
+        parser.parse_job("* * * * 3 true").next_value(
+            datetime(2014, 11, 29, 17, 4, 49))
+        datetime(2014, 12, 3, 0, 0)
+        parser.parse_job("* * * 11 3 true").next_value(
+            datetime(2014, 11, 29, 17, 4, 49))
+        datetime(2015, 11, 4, 0, 0)
+        end_of_year = datetime(2014, 12, 31, 23, 59)
+        parser.parse_job("* * * * * true").next_value(end_of_year)
+        datetime(2015, 1, 1, 0, 0)
+        parser.parse_job("* * 29 2 * true").next_value(end_of_year)
+        datetime(2016, 2, 29, 0, 0)
+        parser.parse_job("* * 29 2 * true").next_value(
+            datetime(2196, 2, 29, 23, 59))
+        datetime(2204, 2, 29, 0, 0)
+
+    def test_Set_init(self):
+        ranges = (Range(1, 5, 4), Range(34, 57, 59), Range(59, 59),
+                  Range(0, 59, 30))
+        s = Set(ranges)
+        self.assertEqual(s.ranges, ranges)
 
     def test_Range_init(self):
         r = Range(1, 59, 2)
